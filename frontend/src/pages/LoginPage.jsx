@@ -1,43 +1,43 @@
-import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import AuthFormField from '../components/AuthFormField'
-import Button from '../components/Button'
-import { useAuth } from '../context/AuthContext'
-import AuthLayout from '../layouts/AuthLayout'
+import { useState } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import AuthFormField from "../components/AuthFormField";
+import Button from "../components/Button";
+import { useAuth } from "../context/AuthContext";
+import AuthLayout from "../layouts/AuthLayout";
 
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const from = location.state?.from || '/diagnosis'
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "/dashboard";
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to={from} replace />
+    return <Navigate to={from} replace />;
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setSubmitting(true)
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
     try {
-      await login(email, password)
-      navigate(from, { replace: true })
+      await login(email, password);
+      navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || 'Unable to sign in.')
+      setError(err.message || "Unable to sign in.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <AuthLayout
-      title="Sign in"
-      subtitle="Access your MediScan AI dashboard to run multimodal analysis."
+      title="Welcome back"
+      subtitle="Sign in to your MediScan AI workspace."
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
         <AuthFormField
@@ -63,21 +63,36 @@ export default function LoginPage() {
           </p>
         )}
 
-        <Button type="submit" className="w-full py-2.5" disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
+        <div className="flex items-center justify-between text-sm">
+          <Link
+            to="/login"
+            className="font-semibold text-teal-700 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+        <Button
+          type="submit"
+          className="primary-btn w-full"
+          disabled={submitting}
+        >
+          {submitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-600">
-        New here?{' '}
-        <Link to="/signup" className="font-medium text-teal-700 hover:underline">
-          Create an account
+        New to MediScan AI?{" "}
+        <Link
+          to="/signup"
+          className="font-medium text-teal-700 hover:underline"
+        >
+          Sign up
         </Link>
       </p>
 
-      <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        Demo account: <strong>demo@mediscan.ai</strong> / <strong>demo123</strong>
+      <p className="mt-4 text-center text-xs text-slate-500">
+        Secure doctor access for research use.
       </p>
     </AuthLayout>
-  )
+  );
 }

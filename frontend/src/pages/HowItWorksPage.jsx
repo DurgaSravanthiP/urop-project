@@ -1,92 +1,126 @@
-import Card from '../components/Card'
-
-const steps = [
-  {
-    num: 1,
-    title: 'Medical Image',
-    desc: 'User uploads MRI, CT, or X-ray.',
-    color: 'border-teal-200 bg-teal-50',
-  },
-  {
-    num: 2,
-    title: 'CNN',
-    desc: 'CNN processes the medical image and extracts visual features.',
-    color: 'border-blue-200 bg-blue-50',
-  },
-  {
-    num: 3,
-    title: 'Symptoms',
-    desc: 'User enters symptoms using text (and optional symptom chips).',
-    color: 'border-violet-200 bg-violet-50',
-  },
-  {
-    num: 4,
-    title: 'NLP',
-    desc: 'NLP processes the symptom information and extracts text features.',
-    color: 'border-indigo-200 bg-indigo-50',
-  },
-  {
-    num: 5,
-    title: 'Multimodal Fusion',
-    desc: 'Image and text features are combined.',
-    color: 'border-purple-200 bg-purple-50',
-  },
-  {
-    num: 6,
-    title: 'Prediction',
-    desc: 'The system generates a possible condition and confidence score (demo UI).',
-    color: 'border-fuchsia-200 bg-fuchsia-50',
-  },
-  {
-    num: 7,
-    title: 'Recommendation',
-    desc: 'General health guidance and professional consultation reminder.',
-    color: 'border-emerald-200 bg-emerald-50',
-  },
-]
+const overall = [
+  "Doctor",
+  "Select MRI or CT",
+  "Upload scan",
+  "Preprocessing",
+  "AI model",
+  "Feature extraction",
+  "Classification",
+  "Prediction",
+  "Save result",
+  "History",
+];
+const pathway = (title, items) => (
+  <section className="surface">
+    <div className="surface-header">
+      <div>
+        <h3>{title}</h3>
+        <p>Separate model pathways keep each modality explicit.</p>
+      </div>
+    </div>
+    <div className="surface-body">
+      <div className="workflow-grid">
+        {items.map((item, index) => (
+          <div className="workflow-step" key={item}>
+            <em>0{index + 1}</em>
+            <strong>{item}</strong>
+            <p>
+              {index === 0
+                ? "Input scan"
+                : index === items.length - 1
+                  ? "Reviewable output"
+                  : "Processing stage"}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 export default function HowItWorksPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-4">
-      <p className="text-slate-600">
-        End-to-end system flow — React frontend, Node/Express API, Python ML services, and
-        MongoDB for stored predictions.
-      </p>
-
-      <Card title="Project Pipeline">
-        <div className="flex flex-col items-stretch">
-          {steps.map((step, index) => (
-            <div key={step.num} className="flex flex-col items-center">
-              <div
-                className={`w-full rounded-xl border-2 px-5 py-4 ${step.color}`}
-              >
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Step {step.num}
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-800">{step.title}</h3>
-                <p className="mt-1 text-sm text-slate-600">{step.desc}</p>
-              </div>
-              {index < steps.length - 1 && (
-                <div className="flex flex-col items-center py-2 text-slate-400" aria-hidden>
-                  <span className="text-xl">↓</span>
-                </div>
-              )}
+    <div className="mx-auto max-w-7xl">
+      <div className="page-intro">
+        <span className="eyebrow">System guide</span>
+        <h2>How MediScan AI works</h2>
+        <p>
+          A simple, transparent workflow from scan selection to saved analysis
+          history.
+        </p>
+      </div>
+      <div className="space-y-5">
+        <section className="surface">
+          <div className="surface-header">
+            <div>
+              <h3>Overall workflow</h3>
+              <p>Every case follows the same review sequence.</p>
             </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="System Layers (Frontend View)">
-        <div className="space-y-2 font-mono text-sm text-slate-700">
-          <p>React Frontend</p>
-          <p className="pl-4 text-slate-400">↓</p>
-          <p>Node.js + Express (REST API)</p>
-          <p className="pl-4 text-slate-400">↓</p>
-          <p>Python ML Services — CNN | NLP → Multimodal Fusion</p>
-          <p className="pl-4 text-slate-400">↓</p>
-          <p>MongoDB (predictions & history)</p>
-        </div>
-      </Card>
+          </div>
+          <div className="surface-body">
+            <div className="workflow-grid">
+              {overall.map((item, index) => (
+                <div className="workflow-step" key={item}>
+                  <em>{String(index + 1).padStart(2, "0")}</em>
+                  <strong>{item}</strong>
+                  <p>
+                    {index === 0
+                      ? "Doctor-led review"
+                      : "Next stage in the case flow"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        {pathway("Brain MRI workflow", [
+          "MRI image",
+          "Preprocessing",
+          "CNN model",
+          "Feature extraction",
+          "Classification",
+          "Brain prediction",
+        ])}
+        {pathway("Lung CT workflow", [
+          "CT image",
+          "Preprocessing",
+          "CNN model",
+          "Feature extraction",
+          "Classification",
+          "Lung prediction",
+        ])}
+        <section className="surface">
+          <div className="surface-header">
+            <div>
+              <h3>Technology architecture</h3>
+              <p>Planned service boundaries for the full system.</p>
+            </div>
+          </div>
+          <div className="surface-body">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+              {[
+                "React frontend",
+                "Node.js + Express",
+                "REST API",
+                "Python ML service",
+                "MRI / CT model",
+                "MongoDB",
+              ].map((item, index) => (
+                <div
+                  className="rounded-xl border border-[#dbe8ed] bg-[#f6fbfc] p-4 text-center text-sm font-bold text-[#31566e]"
+                  key={item}
+                >
+                  {index + 1}. {item}
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 rounded-xl border border-[#f1dfb8] bg-[#fff9eb] p-4 text-sm leading-6 text-[#765523]">
+              This system is an AI-assisted research tool. Predictions should
+              not be considered a definitive medical diagnosis.
+            </p>
+          </div>
+        </section>
+      </div>
     </div>
-  )
+  );
 }

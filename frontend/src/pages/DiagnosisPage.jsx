@@ -1,115 +1,261 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import Card from '../components/Card'
-import Button from '../components/Button'
-import ImageUploader from '../components/ImageUploader'
-import SymptomInput from '../components/SymptomInput'
-import Disclaimer from '../components/Disclaimer'
-import { analyzeDiagnosis } from '../services/diagnosisService'
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { analyzeScan, savePrediction } from "../services/diagnosisService";
 
 export default function DiagnosisPage() {
-  const navigate = useNavigate()
-  const [imageFile, setImageFile] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState(null)
-  const [symptomsText, setSymptomsText] = useState('')
-  const [selectedSymptoms, setSelectedSymptoms] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [modality, setModality] = useState("MRI");
+  const [patientId, setPatientId] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [analyzed, setAnalyzed] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!imageFile) {
-      setPreviewUrl(null)
-      return undefined
+      setPreviewUrl(null);
+      return undefined;
     }
-    const url = URL.createObjectURL(imageFile)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [imageFile])
+    const url = URL.createObjectURL(imageFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
-  const toggleSymptom = (symptom) => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom],
-    )
-  }
-
-  const handleAnalyze = async () => {
-    if (!imageFile && !symptomsText.trim() && selectedSymptoms.length === 0) {
-      alert('Please upload an image and/or enter symptoms for the demo.')
-      return
-    }
-    setLoading(true)
+  const handleAnalyze = async (event) => {
+    event.preventDefault();
+    if (!imageFile || !patientId.trim()) return;
+    setError("");
     try {
-      const result = await analyzeDiagnosis({
+      const created = await analyzeScan({
         imageFile,
-        symptomsText,
-        selectedSymptoms,
-      })
-      navigate('/results', { state: { result, fromDiagnosis: true } })
-    } finally {
-      setLoading(false)
+        patientId,
+        modality,
+        age,
+        gender,
+      });
+      setAnalysis(created);
+      setAnalyzed(true);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to create analysis.");
     }
-  }
+  };
+
+  const handleSave = async () => {
+    if (!analysis?._id) return;
+    setSaving(true);
+    try {
+      setAnalysis(await savePrediction(analysis._id));
+    } catch (requestError) {
+      setError(requestError.message || "Unable to save result.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-blue-600 px-6 py-8 text-white shadow-sm">
-        <h2 className="text-2xl font-bold">Multimodal Medical Diagnosis</h2>
-        <p className="mt-2 max-w-2xl text-teal-50">
-          Upload a medical image and describe symptoms. Analysis results are shown as sample
-          output until the ML backend is fully connected.
+    <div className="mx-auto max-w-7xl">
+      <div className="page-intro">
+        <span className="eyebrow">New analysis</span>
+        <h2>Analyze a scan</h2>
+        <p>
+          Select a modality, add the minimum patient context, and upload an
+          image for model analysis.
         </p>
       </div>
+      <div className="analysis-grid">
+        <form className="surface" onSubmit={handleAnalyze}>
+          <div className="surface-header">
+            <div>
+              <h3>Scan details</h3>
+              <p>Choose the model pathway for this case.</p>
+            </div>
+            <span className="status-pill teal">Step 1 of 2</span>
+          </div>
+          <div className="surface-body">
+            <label className="field-label">Select imaging modality</label>
+            <div className="modality-toggle">
+              {["MRI", "CT"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`modality-option ${modality === item ? "active" : ""}`}
+                  onClick={() => {
+                    setModality(item);
+                    setAnalyzed(false);
+                  }}
+                >
+                  {item === "MRI" ? "Brain MRI" : "Lung CT"}
+                  <small className="block mt-1 font-normal opacity-70">
+                    {item === "MRI" ? "Neuro imaging" : "Thoracic imaging"}
+                  </small>
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="field-label" htmlFor="patient-id">
+                  Patient ID
+                </label>
+                <input
+                  id="patient-id"
+                  className="field-input"
+                  value={patientId}
+                  onChange={(e) => setPatientId(e.target.value)}
+                  placeholder="e.g. P-004"
+                  required
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="age">
+                  Age
+                </label>
+                <input
+                  id="age"
+                  className="field-input"
+                  type="number"
+                  min="0"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="Years"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label" htmlFor="gender">
+                  Gender
+                </label>
+                <select
+                  id="gender"
+                  className="field-input"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                >
+                  <option value="">Select gender</option>
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+            <label className="field-label mt-6">Upload {modality} image</label>
+            <div className="upload-zone">
+              {previewUrl ? (
+                <img src={previewUrl} alt="Uploaded scan preview" />
+              ) : (
+                <div>
+                  <strong className="block text-[#18324b]">
+                    Choose an image to begin
+                  </strong>
+                  <span className="mt-1 block text-xs text-[#728494]">
+                    JPG, PNG or DICOM preview for the frontend demo
+                  </span>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  setImageFile(e.target.files?.[0] || null);
+                  setAnalyzed(false);
+                }}
+              />
+            </div>
+            <button className="primary-btn mt-5 w-full" type="submit">
+              Analyze {modality}
+            </button>
+            {error ? (
+              <p className="mt-3 text-center text-sm text-red-700">{error}</p>
+            ) : null}
+            {!imageFile || !patientId.trim() ? (
+              <p className="mt-3 text-center text-xs text-[#728494]">
+                Add a Patient ID and image to enable the demo result.
+              </p>
+            ) : null}
+          </div>
+        </form>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Upload Medical Image">
-          <ImageUploader
-            file={imageFile}
-            previewUrl={previewUrl}
-            onFileChange={setImageFile}
-            onClear={() => setImageFile(null)}
-          />
-        </Card>
-        <Card title="Enter Your Symptoms">
-          <SymptomInput
-            value={symptomsText}
-            onChange={setSymptomsText}
-            selectedSymptoms={selectedSymptoms}
-            onToggleSymptom={toggleSymptom}
-          />
-        </Card>
+        <section className="surface">
+          <div className="surface-header">
+            <div>
+              <h3>Analysis result</h3>
+              <p>Model output will appear here after analysis.</p>
+            </div>
+            <span className="status-pill slate">Frontend preview</span>
+          </div>
+          <div className="surface-body">
+            <div className="result-preview">
+              {previewUrl ? (
+                <img src={previewUrl} alt="Uploaded scan" />
+              ) : (
+                "Uploaded image preview"
+              )}
+            </div>
+            {analyzed ? (
+              <>
+                <div className="result-list">
+                  <div className="result-row">
+                    <span>Prediction</span>
+                    <strong>
+                      {analysis?.prediction || "Pending model connection"}
+                    </strong>
+                  </div>
+                  <div className="result-row">
+                    <span>Disease type</span>
+                    <strong>
+                      {analysis?.diseaseType || "Dataset label pending"}
+                    </strong>
+                  </div>
+                  <div className="result-row">
+                    <span>Confidence</span>
+                    <strong>
+                      {analysis?.confidence == null
+                        ? "--"
+                        : `${analysis.confidence}%`}
+                    </strong>
+                  </div>
+                  <div className="result-row">
+                    <span>Model</span>
+                    <strong>
+                      {analysis?.modelName ||
+                        `${modality} classification model`}
+                    </strong>
+                  </div>
+                </div>
+                <button
+                  className="secondary-btn w-full"
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || analysis?.saved}
+                >
+                  {analysis?.saved
+                    ? "Result Saved"
+                    : saving
+                      ? "Saving..."
+                      : "Save Result"}
+                </button>
+              </>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="font-semibold text-[#18324b]">
+                  Ready when you are
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[#728494]">
+                  Your prediction card will show only labels returned by the
+                  connected dataset model.
+                </p>
+                <Link
+                  to="/how-it-works"
+                  className="mt-4 inline-block text-sm font-bold text-[#087f8c]"
+                >
+                  View the workflow
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
-
-      <div className="flex flex-col items-center gap-3">
-        <Button
-          className="w-full max-w-md py-3.5 text-base"
-          disabled={loading}
-          onClick={handleAnalyze}
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Analyzing…
-            </span>
-          ) : (
-            'Analyze with AI'
-          )}
-        </Button>
-        <p className="text-center text-xs text-slate-500">
-          Results are labeled as <strong>Demo Prediction</strong> until the backend is connected.
-        </p>
-      </div>
-
-      <Card title="How MediScan AI Works">
-        <ol className="list-inside list-decimal space-y-2 text-sm text-slate-600">
-          <li>CNN extracts features from the uploaded medical image (future Python service).</li>
-          <li>NLP extracts features from symptom text (future Python service).</li>
-          <li>Multimodal fusion combines both feature sets for a prediction (future model).</li>
-        </ol>
-        <Link to="/how-it-works" className="mt-4 inline-block text-sm font-medium text-teal-700 hover:underline">
-          View full architecture →
-        </Link>
-      </Card>
-
-      <Disclaimer />
     </div>
-  )
+  );
 }

@@ -1,29 +1,36 @@
-import { Link } from 'react-router-dom'
-import Disclaimer from '../components/Disclaimer'
+import { Link } from "react-router-dom";
 
 export default function AuthLayout({ title, subtitle, children }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-6">
-        <Link to="/" className="mb-8 inline-flex items-center gap-2 font-semibold text-slate-800">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-600 text-sm text-white">
-            MS
-          </span>
-          MediScan AI
+    <div className="auth-page">
+      <aside className="auth-aside">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-semibold text-white"
+        >
+          <span className="brand-mark">MS</span>MediScan AI
         </Link>
-
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-            <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-            {subtitle && <p className="mt-2 text-sm text-slate-600">{subtitle}</p>}
-            <div className="mt-6">{children}</div>
-          </div>
+        <div>
+          <span className="eyebrow" style={{ color: "#9de3dd" }}>
+            Multimodal medical diagnosis system
+          </span>
+          <h1>Clarity for every scan review.</h1>
+          <p>
+            A focused workspace for doctors to organize MRI and CT analysis,
+            review model output, and keep a clear history of cases.
+          </p>
         </div>
-
-        <div className="mt-8">
-          <Disclaimer compact />
+        <p className="!text-xs !text-[#b7dedd]">
+          AI-assisted research tool. Not a definitive medical diagnosis.
+        </p>
+      </aside>
+      <main className="auth-content">
+        <div className="auth-card">
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+          <div>{children}</div>
         </div>
-      </div>
+      </main>
     </div>
-  )
+  );
 }

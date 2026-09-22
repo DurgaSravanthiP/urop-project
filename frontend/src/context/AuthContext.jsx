@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   clearAuth,
   fetchCurrentUser,
@@ -7,60 +14,60 @@ import {
   logoutApi,
   saveAuth,
   signup as signupRequest,
-} from '../services/authService'
+} from "../services/authService";
 
-const AuthContext = createContext(null)
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = getStoredAuth()
+    const stored = getStoredAuth();
     if (!stored?.token) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
 
-    setToken(stored.token)
-    setUser(stored.user)
+    setToken(stored.token);
+    setUser(stored.user);
 
     fetchCurrentUser()
       .then(({ user: freshUser }) => {
-        setUser(freshUser)
-        saveAuth({ token: stored.token, user: freshUser })
+        setUser(freshUser);
+        saveAuth({ token: stored.token, user: freshUser });
       })
       .catch(() => {
-        clearAuth()
-        setToken(null)
-        setUser(null)
+        clearAuth();
+        setToken(null);
+        setUser(null);
       })
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
   const login = useCallback(async (email, password) => {
-    const data = await loginRequest(email, password)
-    saveAuth(data)
-    setToken(data.token)
-    setUser(data.user)
-    return data.user
-  }, [])
+    const data = await loginRequest(email, password);
+    saveAuth(data);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
-  const signup = useCallback(async (name, email, password) => {
-    const data = await signupRequest(name, email, password)
-    saveAuth(data)
-    setToken(data.token)
-    setUser(data.user)
-    return data.user
-  }, [])
+  const signup = useCallback(async (name, email, password, profile) => {
+    const data = await signupRequest(name, email, password, profile);
+    saveAuth(data);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
   const logout = useCallback(async () => {
-    await logoutApi()
-    clearAuth()
-    setToken(null)
-    setUser(null)
-  }, [])
+    await logoutApi();
+    clearAuth();
+    setToken(null);
+    setUser(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -73,13 +80,13 @@ export function AuthProvider({ children }) {
       logout,
     }),
     [user, token, loading, login, signup, logout],
-  )
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

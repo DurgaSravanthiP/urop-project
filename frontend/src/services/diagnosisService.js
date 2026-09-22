@@ -1,47 +1,56 @@
-/**
- * Placeholder API layer for future integration:
- * React → Node/Express → Python ML (CNN + NLP + Fusion) → Prediction
- */
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
-import { MOCK_HISTORY } from '../data/mockData.js'
+function authHeaders() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("mediscan_auth") || "null");
+    return stored?.token ? { Authorization: `Bearer ${stored.token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+async function readResponse(response) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Request failed");
+  return data;
+}
 
 /**
  * @param {{ imageFile: File | null, symptomsText: string, selectedSymptoms: string[] }} payload
  * @returns {Promise<object>}
  */
-export async function analyzeDiagnosis(payload) {
-  // TODO: replace with fetch(`${API_BASE}/diagnosis/analyze`, { method: 'POST', body: formData })
-  void API_BASE
-  void payload
-
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  return {
-    isDemo: true,
-    label: 'Demo Prediction',
-    condition: 'Brain Tumor',
-    confidence: 92,
-    recommendation:
-      'Please consult a qualified healthcare professional for proper evaluation and diagnosis.',
-    imageAnalysis: {
-      title: 'CNN-based image analysis',
-      detail: 'Visual features extracted from uploaded medical image (placeholder).',
-    },
-    symptomAnalysis: {
-      title: 'NLP-based symptom analysis',
-      detail: 'Symptoms processed from text and selected chips (placeholder).',
-    },
-    multimodal: {
-      title: 'Multimodal fusion',
-      detail: 'Image and symptom information combined for prediction (placeholder).',
-    },
-  }
+export async function analyzeScan({
+  imageFile,
+  patientId,
+  modality,
+  age,
+  gender,
+}) {
+  const formData = new FormData();
+  formData.append("patientId", patientId);
+  formData.append("modality", modality);
+  if (age) formData.append("age", age);
+  if (gender) formData.append("gender", gender);
+  if (imageFile) formData.append("image", imageFile);
+  const response = await fetch(`${API_BASE}/analyses`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: formData,
+  });
+  return (await readResponse(response)).analysis;
 }
 
 export async function fetchPredictionHistory() {
-  // TODO: fetch(`${API_BASE}/diagnosis/history`)
-  void API_BASE
-  return MOCK_HISTORY
+  const response = await fetch(`${API_BASE}/analyses`, {
+    headers: authHeaders(),
+  });
+  return (await readResponse(response)).analyses;
+}
+
+export async function savePrediction(id) {
+  const response = await fetch(`${API_BASE}/analyses/${id}/save`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  return (await readResponse(response)).analysis;
 }
