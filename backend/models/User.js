@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     hospital: { type: String, default: "" },
     specialization: { type: String, default: "" },
     doctorId: { type: String, default: "" },
+    createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true },
 );

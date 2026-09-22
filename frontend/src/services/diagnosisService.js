@@ -19,38 +19,37 @@ async function readResponse(response) {
  * @param {{ imageFile: File | null, symptomsText: string, selectedSymptoms: string[] }} payload
  * @returns {Promise<object>}
  */
-export async function analyzeScan({
-  imageFile,
-  patientId,
-  modality,
-  age,
-  gender,
-}) {
+export async function analyzeScan({ imageFile, scanType }) {
   const formData = new FormData();
-  formData.append("patientId", patientId);
-  formData.append("modality", modality);
-  if (age) formData.append("age", age);
-  if (gender) formData.append("gender", gender);
+  formData.append("scanType", scanType);
   if (imageFile) formData.append("image", imageFile);
-  const response = await fetch(`${API_BASE}/analyses`, {
+
+  const response = await fetch(`${API_BASE}/analyze`, {
     method: "POST",
     headers: authHeaders(),
     body: formData,
   });
-  return (await readResponse(response)).analysis;
+
+  const data = await readResponse(response);
+  return data;
 }
 
 export async function fetchPredictionHistory() {
-  const response = await fetch(`${API_BASE}/analyses`, {
+  const response = await fetch(`${API_BASE}/analysis/history`, {
     headers: authHeaders(),
   });
-  return (await readResponse(response)).analyses;
+  const data = await readResponse(response);
+  return data.history || [];
+}
+
+export async function fetchAnalysisById(id) {
+  const response = await fetch(`${API_BASE}/analysis/${id}`, {
+    headers: authHeaders(),
+  });
+  const data = await readResponse(response);
+  return data.analysis;
 }
 
 export async function savePrediction(id) {
-  const response = await fetch(`${API_BASE}/analyses/${id}/save`, {
-    method: "PATCH",
-    headers: authHeaders(),
-  });
-  return (await readResponse(response)).analysis;
+  return fetchAnalysisById(id);
 }

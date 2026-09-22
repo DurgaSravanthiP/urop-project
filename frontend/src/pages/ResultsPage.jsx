@@ -1,106 +1,49 @@
-import { Link, useLocation, useParams } from 'react-router-dom'
-import Card from '../components/Card'
-import Button from '../components/Button'
-import ConfidenceScore from '../components/ConfidenceScore'
-import PredictionCard from '../components/PredictionCard'
-import Disclaimer from '../components/Disclaimer'
-import { MOCK_HISTORY } from '../data/mockData'
-
-const defaultDemoResult = {
-  isDemo: true,
-  label: 'Demo Prediction',
-  condition: 'Brain Tumor',
-  confidence: 92,
-  recommendation:
-    'Please consult a qualified healthcare professional for proper evaluation and diagnosis.',
-  imageAnalysis: {
-    title: 'CNN-based image analysis',
-    detail: 'Visual features extracted from uploaded medical image (placeholder).',
-  },
-  symptomAnalysis: {
-    title: 'NLP-based symptom analysis',
-    detail: 'Symptoms processed from text and selected chips (placeholder).',
-  },
-  multimodal: {
-    title: 'Multimodal fusion',
-    detail: 'Image and symptom information combined for prediction (placeholder).',
-  },
-}
-
-function historyToResult(entry) {
-  return {
-    isDemo: true,
-    label: 'Demo Prediction (History)',
-    condition: entry.condition,
-    confidence: entry.confidence,
-    recommendation: entry.recommendation,
-    imageAnalysis: { title: 'Image Analysis', detail: entry.imageAnalysis },
-    symptomAnalysis: { title: 'Symptom Analysis', detail: entry.symptomAnalysis },
-    multimodal: { title: 'Multimodal Analysis', detail: entry.multimodal },
-  }
-}
+import { Link, useLocation } from "react-router-dom";
+import Button from "../components/Button";
 
 export default function ResultsPage() {
-  const { state } = useLocation()
-  const { id } = useParams()
+  const { state } = useLocation();
+  const result = state?.result || {
+    scanType: "brain_mri",
+    prediction: "Tumor",
+    confidence: 91.35,
+  };
 
-  let result = state?.result
-  if (!result && id) {
-    const entry = MOCK_HISTORY.find((h) => h.id === id)
-    if (entry) result = historyToResult(entry)
-  }
-  if (!result) result = defaultDemoResult
+  const scanLabel = result.scanType === "lung_ct" ? "Lung CT" : "Brain MRI";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
-          {result.label || 'Demo Prediction'}
-        </span>
-        <span className="text-sm text-slate-500">Not connected to a live ML model</span>
-      </div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
+          Prediction Result
+        </p>
+        <h2 className="mt-2 text-3xl font-bold text-slate-900">{scanLabel}</h2>
 
-      <Card>
-        <p className="text-sm font-medium text-slate-500">Prediction</p>
-        <h2 className="mt-1 text-2xl font-bold text-slate-900">
-          Possible Condition: {result.condition}
-        </h2>
-        <div className="mt-6">
-          <ConfidenceScore value={result.confidence} />
+        <div className="mt-6 space-y-4 text-slate-700">
+          <p>
+            <span className="font-semibold">Model Prediction:</span>{" "}
+            {result.prediction}
+          </p>
+          <p>
+            <span className="font-semibold">Confidence Score:</span>{" "}
+            {Number(result.confidence).toFixed(2)}%
+          </p>
         </div>
-      </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <PredictionCard title="Image Analysis" subtitle={result.imageAnalysis.title}>
-          {result.imageAnalysis.detail}
-        </PredictionCard>
-        <PredictionCard title="Symptom Analysis" subtitle={result.symptomAnalysis.title}>
-          {result.symptomAnalysis.detail}
-        </PredictionCard>
-        <PredictionCard title="Multimodal Analysis" subtitle={result.multimodal.title}>
-          {result.multimodal.detail}
-        </PredictionCard>
-      </div>
-
-      <Card title="General Recommendation">
-        <p className="text-slate-700 leading-relaxed">{result.recommendation}</p>
-      </Card>
-
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-        This result is for decision-support/informational purposes only and is not a medical
-        diagnosis.
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          This system is developed for educational and research purposes and is
+          not a substitute for professional medical diagnosis.
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link to="/diagnosis">
-          <Button>Analyze Again</Button>
+        <Link to="/analyze">
+          <Button>Back to Analysis</Button>
         </Link>
         <Link to="/history">
           <Button variant="secondary">View History</Button>
         </Link>
       </div>
-
-      <Disclaimer />
     </div>
-  )
+  );
 }
