@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 
 import bcrypt from "bcrypt";
 import cors from "cors";
+import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import express from "express";
 import jwt from "jsonwebtoken";
@@ -28,14 +29,21 @@ const JWT_SECRET = process.env.JWT_SECRET || "mediscan-dev-secret";
 
 const app = express();
 const uploadDir = path.join(__dirname, "uploads", "temp");
+const historyImageDir = path.join(__dirname, "uploads", "history");
 fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(historyImageDir, { recursive: true });
 
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadDir),
     filename: (_req, file, cb) => {
-      const safeName = file.originalname.replace(/\s+/g, "_");
-      cb(null, `${Date.now()}-${safeName}`);
+      const extensionByMimeType = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+      };
+      cb(null, `${randomUUID()}${extensionByMimeType[file.mimetype]}`);
     },
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -50,7 +58,6 @@ const upload = multer({
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 function sanitizeUser(user) {
   return {
@@ -72,10 +79,12 @@ function signToken(user) {
 function toAnalysisRecord(record) {
   return {
     id: record._id.toString(),
+    patientId: record.patientId || "",
     scanType: record.scanType,
+    diseaseType: record.diseaseType || "",
     prediction: record.prediction,
     confidence: Number(record.confidence),
-    imageName: record.imageName || "",
+    imageAvailable: Boolean(record.imageName),
     createdAt: record.createdAt,
   };
 }
@@ -91,7 +100,14 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.post("/api/auth/signup", async (req, res) => {
-  const { name, email, password } = req.body || {};
+  const {
+    name,
+    email,
+    password,
+    hospital = "",
+    specialization = "",
+    doctorId = "",
+  } = req.body || {};
 
   if (!name?.trim() || !email?.trim() || !password) {
     return res
@@ -129,6 +145,9 @@ app.post("/api/auth/signup", async (req, res) => {
       name: name.trim(),
       email: normalizedEmail,
       passwordHash,
+      hospital: hospital.trim(),
+      specialization: specialization.trim(),
+      doctorId: doctorId.trim(),
     });
 
     const token = signToken(user);
@@ -179,49 +198,158 @@ app.post("/api/auth/logout", authMiddleware, (_req, res) => {
   return res.json({ success: true, message: "Logged out successfully." });
 });
 
-app.get("/api/auth/profile", authMiddleware, (req, res) => {
-  return res.json({ success: true, user: req.user });
+app.patch("/api/auth/profile", authMiddleware, async (req, res) => {
+  const { name, email, hospital = "", specialization = "", doctorId = "" } =
+    req.body || {};
+  if (!name?.trim() || !email?.trim()) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Name and email are required." });
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Enter a valid email address." });
+  }
+  try {
+    const duplicate = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: req.user.id },
+    });
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        message: "That email address is already in use.",
+      });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name: name.trim(),
+        email: normalizedEmail,
+        hospital: hospital.trim(),
+        specialization: specialization.trim(),
+        doctorId: doctorId.trim(),
+      },
+      { new: true, runValidators: true },
+    );
+    return res.json({ success: true, user: sanitizeUser(user) });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Unable to update your profile." });
+  }
 });
 
-app.get("/api/auth/me", authMiddleware, (req, res) => {
-  return res.json({ success: true, user: req.user });
+app.get("/api/auth/profile", authMiddleware, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  return res.json({ success: true, user: sanitizeUser(user) });
+});
+
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  return res.json({ success: true, user: sanitizeUser(user) });
 });
 
 async function handleAnalyze(req, res) {
-  const { scanType } = req.body || {};
+  const files = req.files || {};
+  const uploads = [];
+  const retainedImagePaths = [];
+  let analysisSaved = false;
+  const patientId = req.body?.patientId?.trim?.() || "";
 
-  if (!req.file) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Please upload an image." });
+  if (files.brainMriImage?.[0]) {
+    uploads.push({
+      file: files.brainMriImage[0],
+      scanType: "brain_mri",
+      diseaseType: "Brain tumour classification",
+    });
   }
-
-  if (!scanType || !["brain_mri", "lung_ct"].includes(scanType)) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid scan type." });
+  if (files.lungCtImage?.[0]) {
+    uploads.push({
+      file: files.lungCtImage[0],
+      scanType: "lung_ct",
+      diseaseType: "Lung cancer classification",
+    });
   }
-
-  const tempPath = req.file.path;
+  if (files.image?.[0]) {
+    const scanType = req.body?.scanType;
+    if (!["brain_mri", "lung_ct"].includes(scanType)) {
+      uploads.push({ file: files.image[0], scanType: "" });
+    } else {
+      uploads.push({
+        file: files.image[0],
+        scanType,
+        diseaseType:
+          scanType === "brain_mri"
+            ? "Brain tumour classification"
+            : "Lung cancer classification",
+      });
+    }
+  }
 
   try {
-    const prediction = await runPythonPrediction(scanType, tempPath);
+    if (uploads.some(({ scanType }) => !scanType)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid scan type." });
+    }
 
-    const analysis = await Analysis.create({
-      userId: req.user.id,
-      scanType,
-      prediction: prediction.prediction,
-      confidence: Number(prediction.confidence),
-      imageName: req.file.originalname,
-    });
+    if (uploads.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please upload an MRI or CT image." });
+    }
+
+    if (!patientId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Patient ID is required." });
+    }
+
+    const predictionResults = await Promise.allSettled(
+      uploads.map(async ({ file, scanType, diseaseType }) => ({
+        file,
+        scanType,
+        diseaseType,
+        prediction: await runPythonPrediction(scanType, file.path),
+      })),
+    );
+    const failedPrediction = predictionResults.find(
+      (result) => result.status === "rejected",
+    );
+    if (failedPrediction) throw failedPrediction.reason;
+    const predictions = predictionResults.map((result) => result.value);
+    for (const prediction of predictions) {
+      prediction.imageName = prediction.file.filename;
+      const retainedImagePath = path.join(
+        historyImageDir,
+        prediction.imageName,
+      );
+      await fs.promises.rename(prediction.file.path, retainedImagePath);
+      retainedImagePaths.push(retainedImagePath);
+    }
+
+    const records = await Analysis.insertMany(
+      predictions.map(({ scanType, diseaseType, prediction, imageName }) => ({
+        userId: req.user.id,
+        patientId,
+        scanType,
+        diseaseType,
+        prediction: prediction.prediction,
+        confidence: Number(prediction.confidence),
+        imageName,
+      })),
+    );
+    analysisSaved = true;
+    const analyses = records.map(toAnalysisRecord);
+    const primaryAnalysis = analyses[0];
 
     return res.status(200).json({
       success: true,
-      scanType,
-      prediction: prediction.prediction,
-      confidence: Number(prediction.confidence),
-      id: analysis._id.toString(),
-      createdAt: analysis.createdAt,
+      ...primaryAnalysis,
+      analyses,
     });
   } catch (error) {
     return res
@@ -231,17 +359,28 @@ async function handleAnalyze(req, res) {
         message: error.message || "Python prediction failed.",
       });
   } finally {
-    if (fs.existsSync(tempPath)) {
-      fs.unlinkSync(tempPath);
+    if (!analysisSaved) {
+      for (const retainedImagePath of retainedImagePaths) {
+        if (fs.existsSync(retainedImagePath)) fs.unlinkSync(retainedImagePath);
+      }
     }
+    Object.values(files).flat().forEach((file) => {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    });
   }
 }
 
-app.post("/api/analyze", authMiddleware, upload.single("image"), handleAnalyze);
+const analysisUploads = upload.fields([
+  { name: "brainMriImage", maxCount: 1 },
+  { name: "lungCtImage", maxCount: 1 },
+  { name: "image", maxCount: 1 },
+]);
+
+app.post("/api/analyze", authMiddleware, analysisUploads, handleAnalyze);
 app.post(
   "/api/analyses",
   authMiddleware,
-  upload.single("image"),
+  analysisUploads,
   async (req, res) => {
     req.body = {
       ...req.body,
@@ -280,6 +419,38 @@ app.get("/api/analysis/:id", authMiddleware, async (req, res) => {
   }
 
   return res.json({ success: true, analysis: toAnalysisRecord(item) });
+});
+
+app.get("/api/analysis/:id/image", authMiddleware, async (req, res) => {
+  const item = await Analysis.findById(req.params.id).lean();
+  if (!item) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Analysis record not found." });
+  }
+
+  if (item.userId.toString() !== req.user.id) {
+    return res
+      .status(403)
+      .json({ success: false, message: "Unauthorized history access." });
+  }
+
+  if (!item.imageName || path.basename(item.imageName) !== item.imageName) {
+    return res
+      .status(404)
+      .json({ success: false, message: "No image is saved for this analysis." });
+  }
+
+  const imagePath = path.join(historyImageDir, item.imageName);
+  if (!fs.existsSync(imagePath)) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Saved analysis image was not found." });
+  }
+
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Content-Type-Options", "nosniff");
+  return res.sendFile(imagePath);
 });
 
 app.get("/api/analyses", authMiddleware, async (req, res) => {

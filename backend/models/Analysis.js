@@ -7,11 +7,13 @@ const analysisSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    patientId: { type: String, default: "" },
     scanType: {
       type: String,
       enum: ["brain_mri", "lung_ct"],
       required: true,
     },
+    diseaseType: { type: String, required: true },
     prediction: { type: String, required: true },
     confidence: { type: Number, required: true },
     imageName: { type: String, default: "" },

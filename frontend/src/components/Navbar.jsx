@@ -14,14 +14,6 @@ export default function Navbar() {
           </span>
           MediScan AI
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-slate-600 md:flex">
-          <Link to="/how-it-works" className="hover:text-teal-700">
-            How It Works
-          </Link>
-          <Link to="/about" className="hover:text-teal-700">
-            About
-          </Link>
-        </nav>
         <div className="flex items-center gap-2">
           {!isAuthenticated ? (
             <>

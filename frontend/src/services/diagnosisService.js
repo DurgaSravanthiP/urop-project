@@ -15,14 +15,11 @@ async function readResponse(response) {
   return data;
 }
 
-/**
- * @param {{ imageFile: File | null, symptomsText: string, selectedSymptoms: string[] }} payload
- * @returns {Promise<object>}
- */
-export async function analyzeScan({ imageFile, scanType }) {
+export async function analyzeScan({ patientId, scanType, image }) {
   const formData = new FormData();
+  formData.append("patientId", patientId);
   formData.append("scanType", scanType);
-  if (imageFile) formData.append("image", imageFile);
+  formData.append("image", image);
 
   const response = await fetch(`${API_BASE}/analyze`, {
     method: "POST",
@@ -48,6 +45,20 @@ export async function fetchAnalysisById(id) {
   });
   const data = await readResponse(response);
   return data.analysis;
+}
+
+export async function fetchAnalysisImage(id) {
+  const response = await fetch(
+    `${API_BASE}/analysis/${encodeURIComponent(id)}/image`,
+    { headers: authHeaders() },
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || "Unable to load the analysis image.");
+  }
+
+  return response.blob();
 }
 
 export async function savePrediction(id) {

@@ -14,6 +14,7 @@ import {
   logoutApi,
   saveAuth,
   signup as signupRequest,
+  updateProfile as updateProfileRequest,
 } from "../services/authService";
 
 const AuthContext = createContext(null);
@@ -62,6 +63,22 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  const updateProfile = useCallback(async (profile) => {
+    const data = await updateProfileRequest(profile);
+    const stored = getStoredAuth();
+    if (stored?.token) saveAuth({ token: stored.token, user: data.user });
+    setUser(data.user);
+    return data.user;
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const data = await fetchCurrentUser();
+    const stored = getStoredAuth();
+    if (stored?.token) saveAuth({ token: stored.token, user: data.user });
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const logout = useCallback(async () => {
     await logoutApi();
     clearAuth();
@@ -77,9 +94,11 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user && token),
       login,
       signup,
+      updateProfile,
+      refreshUser,
       logout,
     }),
-    [user, token, loading, login, signup, logout],
+    [user, token, loading, login, signup, updateProfile, refreshUser, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

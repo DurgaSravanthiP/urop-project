@@ -27,6 +27,9 @@ export default async function authMiddleware(req, res, next) {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
+      hospital: user.hospital || "",
+      specialization: user.specialization || "",
+      doctorId: user.doctorId || "",
     };
     next();
   } catch (error) {

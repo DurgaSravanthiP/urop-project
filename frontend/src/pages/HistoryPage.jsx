@@ -4,17 +4,27 @@ import { fetchPredictionHistory } from "../services/diagnosisService";
 function formatScanName(scanType) {
   if (scanType === "brain_mri") return "Brain MRI";
   if (scanType === "lung_ct") return "Lung CT";
-  return scanType;
+  return "Unknown scan";
+}
+
+function formatDiseaseFocus(row) {
+  if (row.diseaseType) return row.diseaseType;
+  if (row.scanType === "brain_mri") return "Brain tumour classification";
+  if (row.scanType === "lung_ct") return "Lung cancer classification";
+  return "Not recorded";
 }
 
 export default function HistoryPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchPredictionHistory()
       .then((data) => setRows(data))
-      .catch(() => setRows([]))
+      .catch((requestError) =>
+        setError(requestError.message || "Unable to load analysis history."),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -30,14 +40,21 @@ export default function HistoryPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200 text-left">
+        <div className="overflow-x-auto">
+        <table className="history-table min-w-full divide-y divide-slate-200 text-left">
           <thead className="bg-slate-50">
             <tr>
               <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                Date
+                Patient ID
+              </th>
+              <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                Date &amp; Time
               </th>
               <th className="px-4 py-3 text-sm font-semibold text-slate-700">
                 Scan Type
+              </th>
+              <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                Disease Focus
               </th>
               <th className="px-4 py-3 text-sm font-semibold text-slate-700">
                 Prediction
@@ -51,16 +68,25 @@ export default function HistoryPage() {
             {loading ? (
               <tr>
                 <td
-                  colSpan="4"
+                  colSpan="6"
                   className="px-4 py-6 text-center text-slate-500"
                 >
                   Loading history...
                 </td>
               </tr>
+            ) : error ? (
+              <tr>
+                <td
+                  colSpan="6"
+                  className="px-4 py-6 text-center text-red-700"
+                >
+                  {error}
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan="4"
+                  colSpan="6"
                   className="px-4 py-6 text-center text-slate-500"
                 >
                   No analysis records yet.
@@ -69,14 +95,26 @@ export default function HistoryPage() {
             ) : (
               rows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                    {row.patientId || "Not provided"}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-700">
-                    {new Date(row.createdAt).toLocaleDateString("en-GB")}
+                    {new Date(row.createdAt).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">
                     {formatScanName(row.scanType)}
                   </td>
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    {formatDiseaseFocus(row)}
+                  </td>
                   <td className="px-4 py-3 text-sm font-medium text-slate-800">
-                    {row.prediction}
+                    {row.prediction || "Not available"}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-700">
                     {Number(row.confidence).toFixed(2)}%
@@ -86,6 +124,7 @@ export default function HistoryPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

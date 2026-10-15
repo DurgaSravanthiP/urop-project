@@ -1,28 +1,23 @@
 import json
 import os
 import sys
-
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(SCRIPT_DIR, "brain_mri_efficientnet_final.keras")
-
-
 def predict(image_path: str):
     if not image_path or not os.path.exists(image_path):
         raise FileNotFoundError("Image file not found.")
 
     image = Image.open(image_path).convert("RGB")
-    image = image.resize((224, 224))
-    image_array = np.array(image, dtype=np.float32) / 255.0
+    image = image.resize((224, 224), Image.Resampling.BILINEAR)
+    image_array = np.array(image, dtype=np.float32)
     image_array = np.expand_dims(image_array, axis=0)
 
     model = tf.keras.models.load_model(MODEL_PATH)
     prediction = model.predict(image_array, verbose=0)
     probability = float(prediction[0][0])
-
     if probability >= 0.5:
         predicted_class = "Tumor"
         confidence = probability

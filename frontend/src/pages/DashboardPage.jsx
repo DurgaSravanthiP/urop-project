@@ -2,31 +2,51 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 import { fetchPredictionHistory } from "../services/diagnosisService";
+import { formatName } from "../utils/formatName";
+
+function scanLabel(scanType) {
+  if (scanType === "brain_mri") return "Brain MRI";
+  if (scanType === "lung_ct") return "Lung CT";
+  return "Unknown scan";
+}
+
+function diseaseFocus(row) {
+  if (row.diseaseType) return row.diseaseType;
+  if (row.scanType === "brain_mri") return "Brain tumour classification";
+  if (row.scanType === "lung_ct") return "Lung cancer classification";
+  return "Not recorded";
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(" ")[0] || "Doctor";
+  const firstName = formatName(user?.name?.split(" ")[0] || "Doctor");
   const [analyses, setAnalyses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   useEffect(() => {
     fetchPredictionHistory()
       .then(setAnalyses)
-      .catch(() => setAnalyses([]));
+      .catch((requestError) =>
+        setError(requestError.message || "Unable to load analyses."),
+      )
+      .finally(() => setLoading(false));
   }, []);
   const recentAnalyses = analyses.slice(0, 5);
-  const mriCount = analyses.filter((item) => item.modality === "MRI").length;
-  const ctCount = analyses.filter((item) => item.modality === "CT").length;
+  const mriCount = analyses.filter((item) => item.scanType === "brain_mri").length;
+  const ctCount = analyses.filter((item) => item.scanType === "lung_ct").length;
 
   return (
     <div className="mx-auto max-w-7xl">
       <section className="dashboard-hero">
         <div>
           <span className="eyebrow" style={{ color: "#9de3dd" }}>
-            Clinical workspace
+          Imaging workspace
           </span>
           <h2>Welcome, Dr. {firstName}</h2>
           <p>
-            AI-assisted medical image analysis for MRI and CT scans, designed to
-            support your clinical review workflow.
+          Review imaging classifications and keep each result organized by
+          patient.
           </p>
         </div>
         <Link to="/analyze" className="primary-btn">
@@ -38,17 +58,17 @@ export default function DashboardPage() {
         <div className="surface stat-card">
           <span>Total cases</span>
           <strong>{analyses.length}</strong>
-          <small>MongoDB records</small>
+          <small>Saved analyses</small>
         </div>
         <div className="surface stat-card">
           <span>MRI cases</span>
           <strong>{mriCount}</strong>
-          <small>Brain imaging</small>
+          <small>Brain MRI</small>
         </div>
         <div className="surface stat-card">
           <span>CT cases</span>
           <strong>{ctCount}</strong>
-          <small>Lung imaging</small>
+          <small>Lung CT</small>
         </div>
       </section>
 
@@ -68,29 +88,49 @@ export default function DashboardPage() {
               <tr>
                 <th>Patient ID</th>
                 <th>Scan type</th>
+                <th>Disease focus</th>
                 <th>Prediction</th>
                 <th>Date</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {recentAnalyses.map((row) => (
-                <tr key={row._id}>
-                  <td>{row.patientId}</td>
-                  <td>{row.modality}</td>
-                  <td>
-                    <span className={`status-pill ${row.tone}`}>
-                      {row.prediction}
-                    </span>
-                  </td>
-                  <td>{new Date(row.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <Link to="/history" className="link-btn">
-                      View
-                    </Link>
+              {error ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-red-700">
+                    {error}
                   </td>
                 </tr>
-              ))}
+              ) : loading ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-slate-500">
+                    Loading analyses…
+                  </td>
+                </tr>
+              ) : recentAnalyses.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-slate-500">
+                    No analyses recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                recentAnalyses.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.patientId || "—"}</td>
+                    <td>
+                      {scanLabel(row.scanType)}
+                    </td>
+                    <td>{diseaseFocus(row)}</td>
+                    <td>{row.prediction || "Not available"}</td>
+                    <td>{new Date(row.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <Link to="/history" className="link-btn">
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

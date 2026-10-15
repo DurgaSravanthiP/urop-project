@@ -15,8 +15,8 @@ def predict(image_path: str):
         raise FileNotFoundError("Image file not found.")
 
     image = Image.open(image_path).convert("RGB")
-    image = image.resize((224, 224))
-    image_array = np.array(image, dtype=np.float32) / 255.0
+    image = image.resize((224, 224), Image.Resampling.BILINEAR)
+    image_array = np.array(image, dtype=np.float32)
     image_array = np.expand_dims(image_array, axis=0)
 
     model = tf.keras.models.load_model(MODEL_PATH)

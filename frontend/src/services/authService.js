@@ -58,6 +58,13 @@ export async function fetchCurrentUser() {
   return request("/auth/me");
 }
 
+export async function updateProfile(profile) {
+  return request("/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(profile),
+  });
+}
+
 export async function logoutApi() {
   try {
     await request("/auth/logout", { method: "POST" });
